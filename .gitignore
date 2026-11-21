@@ -1,0 +1,18 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+data/.private-config.json
+data/.private-config.json.*.tmp
+
+# Runtime data and local databases
+/data/
+/victim-app/data/
+*.db
+*.db-shm
+*.db-wal
