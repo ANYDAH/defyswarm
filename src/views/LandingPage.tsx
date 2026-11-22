@@ -126,7 +126,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenConsole }) => {
   const replayPanelRef = useRef<HTMLDivElement | null>(null);
   const statsSectionRef = useRef<HTMLElement | null>(null);
 
-  const [reducedMotion, setReducedMotion] = useState(false);
   const [pageReady, setPageReady] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -153,10 +152,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenConsole }) => {
   // Docs / Quickstart / Roadmap / Scope modal
   const [sheetTopic, setSheetTopic] = useState<LandingSheetTopic | null>(null);
 
-  useEffect(() => {
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    setReducedMotion(prefersReduced);
+  const hasAnimatedStats = useRef(false);
 
+  useEffect(() => {
     const updateUnit = () => {
       const w = document.documentElement.clientWidth || window.innerWidth;
       const u = w <= 820 ? w / 390 : w / 1440;
@@ -185,17 +183,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenConsole }) => {
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
 
-    let readyTimer = 0;
-    if (prefersReduced) {
+    const readyTimer = window.setTimeout(() => {
       setPageReady(true);
-      setFirstRowContained(true);
-      setFirstRowSweep(true);
-      setStatValues(STATS_DATA.map((s) => s.target));
-    } else {
-      readyTimer = window.setTimeout(() => {
-        setPageReady(true);
-      }, 60);
-    }
+    }, 50);
 
     return () => {
       window.removeEventListener('resize', updateUnit);
@@ -210,21 +200,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenConsole }) => {
   // Global IntersectionObserver adding .in once then unobserving
   useEffect(() => {
     const root = rootRef.current;
-    if (!root) return;
+    if (!root || !pageReady) return;
 
     const revealNodes = Array.from(root.querySelectorAll<HTMLElement>('.reveal, .ds-checker'));
-    if (reducedMotion) {
-      revealNodes.forEach((node) => node.classList.add('in'));
-      setContainRevealed(true);
-      setReplayRevealed(true);
-      return;
-    }
-
-    if (!pageReady) return;
 
     const revealIfVisible = (node: HTMLElement) => {
       const rect = node.getBoundingClientRect();
-      if (rect.top < window.innerHeight * 0.98 && rect.bottom > 0) {
+      if (rect.top < window.innerHeight * 0.96 && rect.bottom > 0) {
         node.classList.add('in');
         if (node === containPanelRef.current) setContainRevealed(true);
         if (node === replayPanelRef.current) setReplayRevealed(true);
@@ -250,7 +232,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenConsole }) => {
           }
         });
       },
-      { threshold: 0.05 },
+      { threshold: 0.05, rootMargin: '0px 0px -30px 0px' },
     );
 
     revealNodes.forEach((node) => {
@@ -259,11 +241,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenConsole }) => {
       }
     });
     return () => observer.disconnect();
-  }, [pageReady, reducedMotion]);
+  }, [pageReady]);
 
   // Containment panel: first row flips Active -> Revoked (403) ~1s after reveal
   useEffect(() => {
-    if (!containRevealed || reducedMotion) return;
+    if (!containRevealed) return;
     const t1 = window.setTimeout(() => {
       setFirstRowFlipping(true);
     }, 1000);
@@ -279,56 +261,75 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenConsole }) => {
       window.clearTimeout(t2);
       window.clearTimeout(t3);
     };
-  }, [containRevealed, reducedMotion]);
+  }, [containRevealed]);
 
   // Recovery replay loop restarts every 8s when revealed & not paused
   useEffect(() => {
-    if (!replayRevealed || replayPaused || reducedMotion) return;
+    if (!replayRevealed || replayPaused) return;
     const interval = window.setInterval(() => {
       setReplayCycle((c) => c + 1);
     }, 8000);
     return () => window.clearInterval(interval);
-  }, [replayRevealed, replayPaused, reducedMotion]);
+  }, [replayRevealed, replayPaused]);
 
-  // Stats count-up over 1.2s easeOutCubic when revealed
+  // Stats count-up over 1.4s easeOutExpo when revealed
   useEffect(() => {
     const el = statsSectionRef.current;
-    if (!el || reducedMotion) return;
+    if (!el) return;
 
     let rafId = 0;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((e) => e.isIntersecting)) return;
-        observer.disconnect();
-        const start = performance.now();
-        const duration = 1200;
+    const startCountUp = () => {
+      if (hasAnimatedStats.current) return;
+      hasAnimatedStats.current = true;
+      const start = performance.now();
+      const duration = 1500;
 
-        const tick = (now: number) => {
-          const t = Math.min(1, (now - start) / duration);
-          const eased = 1 - Math.pow(1 - t, 3);
-          setStatValues(STATS_DATA.map((s) => Math.round(s.target * eased)));
-          if (t < 1) {
-            rafId = window.requestAnimationFrame(tick);
+      const tick = (now: number) => {
+        const elapsed = now - start;
+        const t = Math.min(1, elapsed / duration);
+        // Smooth decelerating exponential curve
+        const eased = t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+        setStatValues(STATS_DATA.map((s) => Math.round(s.target * eased)));
+        if (t < 1) {
+          rafId = window.requestAnimationFrame(tick);
+        } else {
+          setStatValues(STATS_DATA.map((s) => s.target));
+        }
+      };
+      rafId = window.requestAnimationFrame(tick);
+    };
+
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight * 0.95 && rect.bottom > 0) {
+      startCountUp();
+    } else {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((e) => e.isIntersecting)) {
+            observer.disconnect();
+            startCountUp();
           }
-        };
-        rafId = window.requestAnimationFrame(tick);
-      },
-      { threshold: 0.2 },
-    );
+        },
+        { threshold: 0.1, rootMargin: '0px 0px -40px 0px' },
+      );
+      observer.observe(el);
+      return () => {
+        observer.disconnect();
+        window.cancelAnimationFrame(rafId);
+      };
+    }
 
-    observer.observe(el);
     return () => {
-      observer.disconnect();
       window.cancelAnimationFrame(rafId);
     };
-  }, [reducedMotion]);
+  }, []);
 
   const scrollToSection = useCallback((id: string) => {
     const target = document.getElementById(id);
     if (target) {
-      target.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  }, [reducedMotion]);
+  }, []);
 
   const toggleHeroPolicy = (idx: number) => {
     setHeroToggles((prev) => prev.map((v, i) => (i === idx ? !v : v)));
@@ -346,7 +347,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenConsole }) => {
           className="ds-logo"
           onClick={(e) => {
             e.preventDefault();
-            window.scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
         >
           <BrandLogo />
@@ -1164,7 +1165,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenConsole }) => {
               className="ds-logo"
               onClick={(e) => {
                 e.preventDefault();
-                window.scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' });
+                window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             >
               <BrandLogo />

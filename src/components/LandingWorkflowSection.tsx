@@ -62,11 +62,9 @@ export const LandingWorkflowSection: React.FC<LandingWorkflowSectionProps> = ({
     const el = sectionRef.current;
     if (!el) return;
 
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReduced) {
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight && rect.bottom > 0) {
       setInView(true);
-      setTypedCount(FULL_LOG.length);
-      setPolicyEngaged(true);
       return;
     }
 
@@ -77,7 +75,7 @@ export const LandingWorkflowSection: React.FC<LandingWorkflowSectionProps> = ({
           observer.disconnect();
         }
       },
-      { threshold: 0.16 },
+      { threshold: 0.1 },
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -86,7 +84,6 @@ export const LandingWorkflowSection: React.FC<LandingWorkflowSectionProps> = ({
   // Synchronised typing log + diagram state transitions
   useEffect(() => {
     if (!inView) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     let cancelled = false;
     let timeoutId = 0;
