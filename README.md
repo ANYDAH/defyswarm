@@ -1,28 +1,69 @@
-# DefySwarm
+# DefySwarm — Landing Page
 
-DefySwarm is a local development console for object-storage monitoring, canary alerts, containment, and vault recovery.
+Modern, responsive landing page for DefySwarm: Out-of-band Cloud Object Storage Ransomware & AI Swarm Defense.
 
-## Build and run
+## Tech Stack
 
-```sh
-bun install --frozen-lockfile
-npm run lint
-npm run build
-npm start
+- **React 19**
+- **Vite 8**
+- **Tailwind CSS 4**
+- **TypeScript**
+
+## Getting Started
+
+### 1. Install Dependencies
+
+```bash
+npm install
 ```
 
-Open [the console](http://127.0.0.1:3000). Run `npm run dev` for live code reloads. Set `PORT` to use a different port.
+### 2. Start Development Server
 
-Use **Live Storage** to upload a sample object and inspect its telemetry. **Simulator** runs isolated tests for routine storage traffic, versioning alerts, multi-principal correlation, and SHA-256 recovery. **Analytics** benchmarks those fixtures through the local adapter.
+```bash
+npm run dev
+```
 
-## Credentials
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-Built-in storage, seeded canaries, simulation, and benchmarks work without API keys.
+### 3. Production Build
 
-- For generated canaries, enter a **Groq API key** under **Setup & Settings → Groq BYOK Settings**. The app saves submitted keys in `data/.private-config.json`, with owner-only file permissions, and reloads them after restart. You can also set `GROQ_API_KEY` in a local `.env` file.
-- To connect S3-compatible storage, enter its endpoint, bucket names, and monitor access-key pair in **Setup & Settings**. An external vault uses a separate access-key pair. The credential variable names are listed in `.env.example`.
-- The ingest token is generated at startup. Set `DEFYSWARM_INGEST_TOKEN` locally if your webhook sender needs a stable token.
+```bash
+npm run build
+```
 
-The console binds to loopback, and its role picker is for local demonstration. The bundled object store and vault hold sample data in memory.
+The production assets will be generated in the `dist/` directory.
 
-Monitor keys, vault keys, Groq keys, and the ingest token persist in the private configuration file. The file contains secrets, is excluded from Git, and is readable by the current macOS user. Use the app’s Clear controls to remove saved provider keys. S3 connectivity is verified again at startup.
+### 4. Preview Production Build
+
+```bash
+npm run preview
+```
+
+## Project Structure
+
+```
+├── index.html              # Entry HTML document
+├── package.json            # Scripts & frontend dependencies
+├── tsconfig.json           # TypeScript configuration
+├── vite.config.ts          # Vite build configuration
+├── public/                 # Static assets (fonts, brand logos)
+│   └── assets/
+│       ├── brand/
+│       │   └── defyswarm-logo.png
+│       └── fonts/
+│           ├── DM-Sans-OFL.txt
+│           ├── dm-sans-latin.woff2
+│           └── dm-sans-latin-ext.woff2
+└── src/
+    ├── main.tsx            # Application entrypoint
+    ├── App.tsx             # Root component
+    ├── index.css           # Global typography & landing styles
+    ├── context/
+    │   └── ConsoleContext.tsx # Page routing types
+    ├── components/
+    │   ├── BrandLogo.tsx              # SVG brand logo component
+    │   ├── LandingDocsSheet.tsx       # Quickstart, Scope & Roadmap modal sheet
+    │   └── LandingWorkflowSection.tsx # Interactive workflow replay & telemetry log
+    └── views/
+        └── LandingPage.tsx            # Main landing page view
+```
